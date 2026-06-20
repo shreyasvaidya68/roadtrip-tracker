@@ -504,9 +504,9 @@ function resolveOneUrl(url) {
     if (!url) return null;
     url = url.trim();
     const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (driveMatch) return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1200`;
+    if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
     const openMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (openMatch && url.includes('drive.google.com')) return `https://drive.google.com/thumbnail?id=${openMatch[1]}&sz=w1200`;
+    if (openMatch && url.includes('drive.google.com')) return `https://lh3.googleusercontent.com/d/${openMatch[1]}`;
     return url;
 }
 
