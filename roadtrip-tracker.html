@@ -55,7 +55,7 @@
         .refresh-btn:hover { background: rgba(255,255,255,0.25); }
 
         /* ─── MAIN ─── */
-        .main { display: flex; flex: 1; overflow: hidden; }
+        .main { display: flex; flex: 1; overflow: hidden; position: relative; }
 
         /* ─── SIDEBAR ─── */
         .sidebar {
@@ -66,6 +66,58 @@
             flex-direction: column;
             overflow: hidden;
             border-right: 1px solid var(--dark-navy);
+            transition: width 0.3s ease, min-width 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+        .sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+        }
+
+        /* ─── SIDEBAR TOGGLE ─── */
+        .sidebar-toggle {
+            position: absolute;
+            left: 330px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            background: var(--red);
+            color: white;
+            border: none;
+            width: 20px;
+            height: 52px;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: left 0.3s ease, background 0.2s;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.4);
+            padding: 0;
+        }
+        .sidebar-toggle:hover { background: #c0392b; }
+        .sidebar-toggle.collapsed { left: 0; }
+
+        /* ─── MOBILE ─── */
+        @media (max-width: 640px) {
+            header { padding: 8px 12px; }
+            .header-title { font-size: 0.95rem; }
+            .header-sub { display: none; }
+            .header-checkin-label { display: none; }
+            .refresh-btn { padding: 4px 8px; font-size: 0.7rem; }
+            .sidebar {
+                position: absolute;
+                top: 0; left: 0; bottom: 0;
+                width: 300px;
+                min-width: 300px;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            }
+            .sidebar.collapsed { width: 0; min-width: 0; }
+            .sidebar-toggle { left: 300px; }
+            .sidebar-toggle.collapsed { left: 0; }
+            #map { width: 100%; }
         }
 
         /* Current location */
@@ -347,6 +399,8 @@
         </div>
     </div>
 
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">◀</button>
+
     <!-- MAP -->
     <div id="map"></div>
 
@@ -559,6 +613,23 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { lb.style.display = 'none'; document.body.style.overflow = ''; }
 });
 
+// ─── Sidebar toggle ───────────────────────────────────────────
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const btn = document.getElementById('sidebarToggle');
+    const collapsed = sidebar.classList.toggle('collapsed');
+    btn.classList.toggle('collapsed', collapsed);
+    btn.textContent = collapsed ? '▶' : '◀';
+    setTimeout(() => map.invalidateSize(), 310);
+}
+
+// Auto-collapse sidebar on mobile
+if (window.innerWidth <= 640) {
+    document.querySelector('.sidebar').classList.add('collapsed');
+    document.getElementById('sidebarToggle').classList.add('collapsed');
+    document.getElementById('sidebarToggle').textContent = '▶';
+}
+
 function fmtDate(s) {
     if (!s) return '';
     const d = new Date(s + 'T12:00:00');
@@ -674,7 +745,21 @@ async function loadTrip() {
     valid.forEach((stop, i) => {
         const isCur = i === valid.length - 1;
         const photoUrls = resolvePhotoUrl(stop['Photo URL']);
-        const photo = photoUrls.length ? `<br><img src="${photoUrls[0]}" style="width:100%;max-width:220px;border-radius:5px;margin-top:8px;"/>${photoUrls.length > 1 ? `<br><span style="font-size:.75rem;opacity:.6">${photoUrls.length} photos — click pin to see all</span>` : ''}` : '';
+        const urlsJson = JSON.stringify(photoUrls);
+        const popupThumbs = photoUrls.map((u, i) =>
+            `<img src="${u}" onclick="openLightbox(${urlsJson},${i})"
+                style="width:80px;height:64px;object-fit:cover;border-radius:5px;
+                flex-shrink:0;cursor:pointer;border:2px solid rgba(255,255,255,0.15);
+                transition:opacity .15s" onmouseover="this.style.opacity='.8'"
+                onmouseout="this.style.opacity='1'"
+                onerror="this.style.display='none'" />`
+        ).join('');
+        const photo = photoUrls.length ? `
+            <div style="display:flex;gap:5px;overflow-x:auto;margin-top:8px;
+                padding-bottom:4px;max-width:240px;
+                scrollbar-width:thin;">
+                ${popupThumbs}
+            </div>` : '';
         const marker = L.marker([stop.coords.lat, stop.coords.lng], { icon: makeStopIcon(isCur) })
             .addTo(map)
             .bindPopup(`
