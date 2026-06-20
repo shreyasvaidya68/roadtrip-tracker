@@ -107,15 +107,28 @@
             .header-sub { display: none; }
             .header-checkin-label { display: none; }
             .refresh-btn { padding: 4px 8px; font-size: 0.7rem; }
+
             .sidebar {
-                position: absolute;
-                top: 0; left: 0; bottom: 0;
-                width: 300px;
-                min-width: 300px;
-                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+                position: fixed;
+                top: 56px; left: 0; bottom: 0;
+                width: 300px !important;
+                min-width: 300px !important;
+                z-index: 500;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+                transform: translateX(0);
+                transition: transform 0.3s ease;
             }
-            .sidebar.collapsed { width: 0; min-width: 0; }
-            .sidebar-toggle { left: 300px; }
+            .sidebar.collapsed {
+                transform: translateX(-300px);
+            }
+            .sidebar-toggle {
+                position: fixed;
+                top: 50%;
+                left: 300px;
+                transform: translateY(-50%);
+                transition: left 0.3s ease;
+                z-index: 501;
+            }
             .sidebar-toggle.collapsed { left: 0; }
             #map { width: 100%; }
         }
@@ -636,6 +649,9 @@ function fmtDate(s) {
     return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
 }
 
+// Global photo store — avoids embedding JSON with double-quotes inside HTML attributes
+window.__photoStore = {};
+
 // ─── Track layers ─────────────────────────────────────────────
 let mapMarkers = [], routeLayer = null;
 
@@ -745,19 +761,18 @@ async function loadTrip() {
     valid.forEach((stop, i) => {
         const isCur = i === valid.length - 1;
         const photoUrls = resolvePhotoUrl(stop['Photo URL']);
-        const urlsJson = JSON.stringify(photoUrls);
-        const popupThumbs = photoUrls.map((u, i) =>
-            `<img src="${u}" onclick="openLightbox(${urlsJson},${i})"
-                style="width:80px;height:64px;object-fit:cover;border-radius:5px;
-                flex-shrink:0;cursor:pointer;border:2px solid rgba(255,255,255,0.15);
-                transition:opacity .15s" onmouseover="this.style.opacity='.8'"
-                onmouseout="this.style.opacity='1'"
-                onerror="this.style.display='none'" />`
+        // Store photo URLs globally so popup onclicks can reference without JSON quoting issues
+        const photoStoreKey = `stop_${i}`;
+        window.__photoStore[photoStoreKey] = photoUrls;
+        const popupThumbs = photoUrls.map((u, pi) =>
+            `<img src='${u}' onclick='openLightbox(window.__photoStore["${photoStoreKey}"],${pi})'
+                style='width:80px;height:64px;object-fit:cover;border-radius:5px;
+                flex-shrink:0;cursor:pointer;border:2px solid rgba(255,255,255,0.15)'
+                onerror='this.style.display="none"' />`
         ).join('');
         const photo = photoUrls.length ? `
-            <div style="display:flex;gap:5px;overflow-x:auto;margin-top:8px;
-                padding-bottom:4px;max-width:240px;
-                scrollbar-width:thin;">
+            <div style='display:flex;gap:5px;overflow-x:auto;margin-top:8px;
+                padding-bottom:4px;max-width:240px;scrollbar-width:thin;'>
                 ${popupThumbs}
             </div>` : '';
         const marker = L.marker([stop.coords.lat, stop.coords.lng], { icon: makeStopIcon(isCur) })
